@@ -10,7 +10,7 @@ celery_app = Celery(
 
 celery_app.conf.task_routes = {
     "app.worker.tasks.remove_background_task": "gpu-worker",
-    "app.worker.tasks.process_metadata_task": "cpu-worker",
+    "app.worker.tasks.extract_metadata_task": "cpu-worker",
     "app.worker.tasks.virtual_tryon_task": "gpu-worker",
 }
 
@@ -20,4 +20,8 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    task_queues={
+        "gpu-worker": {"exchange": "gpu-worker", "routing_key": "gpu-worker"},
+        "cpu-worker": {"exchange": "cpu-worker", "routing_key": "cpu-worker"},
+    }
 )
