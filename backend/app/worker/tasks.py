@@ -3,12 +3,17 @@ from celery import shared_task
 from rembg import remove
 from PIL import Image
 import io
+import json
+from app.db.session import SessionLocal
+from app.models.garment import Garment
+from uuid import UUID
 
 @shared_task(name="app.worker.tasks.remove_background_task")
-def remove_background_task(input_path: str, output_path: str):
+def remove_background_task(input_path: str, output_path: str, garment_id: str):
     """
     Reads an image from input_path, removes background, removes any alpha matting artifacts,
     resizes to standard VTON size (768x1024), and saves to output_path.
+    Updates the Garment record in DB.
     """
     try:
         # Load image
@@ -32,15 +37,26 @@ def remove_background_task(input_path: str, output_path: str):
         # Save
         image.save(output_path, "PNG")
         
+        # Update DB
+        db = SessionLocal()
+        try:
+            garment = db.query(Garment).filter(Garment.id == UUID(garment_id)).first()
+            if garment:
+                garment.processed_image_path = output_path
+                db.commit()
+        finally:
+            db.close()
+            
         return {"status": "completed", "output_path": output_path}
     except Exception as e:
         return {"status": "failed", "error": str(e)}
 
 @shared_task(name="app.worker.tasks.extract_metadata_task")
-def extract_metadata_task(image_path: str):
+def extract_metadata_task(image_path: str, garment_id: str):
     """
     Uses Gemini 1.5 Flash to extract metadata from the garment image.
     Returns a JSON object with category, color, pattern, etc.
+    Updates the Garment record in DB.
     """
     try:
         import google.generativeai as genai
@@ -71,6 +87,22 @@ def extract_metadata_task(image_path: str):
         # simple cleanup in case it returns markdown blocks
         text = response.text.replace("```json", "").replace("```", "").strip()
         
+        # Validate JSON
+        try:
+            metadata_obj = json.loads(text)
+        except json.JSONDecodeError:
+            metadata_obj = {"raw_text": text, "error": "Invalid JSON"}
+
+        # Update DB
+        db = SessionLocal()
+        try:
+            garment = db.query(Garment).filter(Garment.id == UUID(garment_id)).first()
+            if garment:
+                garment.metadata_json = metadata_obj
+                db.commit()
+        finally:
+            db.close()
+
         return {"status": "completed", "metadata": text}
     except Exception as e:
         return {"status": "failed", "error": str(e)}

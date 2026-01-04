@@ -13,18 +13,35 @@ PROCESSED_DIR = "media/processed"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
+# Additional imports
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.db.session import SessionLocal
+from app.models.garment import Garment
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 @router.post("/upload")
-async def upload_garment(file: UploadFile = File(...)):
+async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Upload a raw garment image.
+    Creates a Garment record in DB.
     Triggers background removal and metadata extraction tasks.
-    Returns task IDs.
+    Returns task IDs and garment ID.
     """
     if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, WEBP allowed.")
 
-    # Generate unique ID
-    file_id = str(uuid.uuid4())
+    # Generate unique ID (we use uuid for file safety, and let DB generate its own if we didn't specify, 
+    # but here we reuse the file_id for DB id as well for consistency)
+    file_uuid = uuid.uuid4()
+    file_id = str(file_uuid)
     extension = file.filename.split(".")[-1]
     
     # Paths
@@ -41,16 +58,27 @@ async def upload_garment(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
 
+    # Create DB Record
+    garment = Garment(
+        id=file_uuid,
+        filename=file.filename,
+        raw_image_path=raw_path
+    )
+    db.add(garment)
+    db.commit()
+    db.refresh(garment)
+
     # Trigger Celery Tasks
     # 1. Background Removal
-    rembg_task = remove_background_task.delay(raw_path, processed_path)
+    rembg_task = remove_background_task.delay(raw_path, processed_path, file_id)
     
     # 2. Metadata Extraction
-    metadata_task = extract_metadata_task.delay(raw_path)
+    metadata_task = extract_metadata_task.delay(raw_path, file_id)
 
     return {
         "message": "File uploaded and processing started",
         "file_id": file_id,
+        "garment_id": str(garment.id),
         "tasks": {
             "background_removal": rembg_task.id,
             "metadata_extraction": metadata_task.id

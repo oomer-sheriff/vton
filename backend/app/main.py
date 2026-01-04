@@ -5,6 +5,8 @@ import logging
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.celery_app import celery_app
+from app.db.session import engine
+from app.db.base import Base
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
@@ -12,6 +14,14 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: Create Tables
+    try:
+        logger.info("Creating database tables...")
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created.")
+    except Exception as e:
+        logger.error(f"Error creating database tables: {e}")
+
     # Startup: Check Celery Connection
     try:
         logger.info(f"Checking Celery Broker connection at {settings.CELERY_BROKER_URL}...")
