@@ -1,0 +1,14 @@
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+celery==5.3.6
+redis==5.0.1
+sqlalchemy==2.0.27
+psycopg2-binary==2.9.9
+python-multipart==0.0.9
+python-dotenv==1.0.1
+pydantic==2.6.1
+pydantic-settings==2.1.0
+rembg[gpu]==2.0.55
+pillow==10.2.0
+httpx==0.26.0
+google-generativeai==0.3.2
