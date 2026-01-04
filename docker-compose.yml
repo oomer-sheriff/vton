@@ -10,9 +10,11 @@ services:
     environment:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
     depends_on:
       - db
       - redis
+      - rabbitmq
 
   worker:
     build: ./backend
@@ -22,9 +24,11 @@ services:
     environment:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
     depends_on:
       - db
       - redis
+      - rabbitmq
     # deploy:
     #   resources:
     #     reservations:
@@ -48,6 +52,15 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
 
 volumes:
   postgres_data:
