@@ -30,10 +30,10 @@ async def tryon(
     ext = person_image.filename.split(".")[-1]
     
     person_filename = f"{task_id}_person.{ext}"
-    person_path = os.path.join(UPLOAD_DIR, person_filename)
+    person_path = os.path.join(UPLOAD_DIR, person_filename).replace("\\", "/")
     
     output_filename = f"{task_id}_tryon.png"
-    output_path = os.path.join(RESULTS_DIR, output_filename)
+    output_path = os.path.join(RESULTS_DIR, output_filename).replace("\\", "/")
 
     try:
         with open(person_path, "wb") as buffer:

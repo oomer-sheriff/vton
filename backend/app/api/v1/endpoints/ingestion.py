@@ -46,10 +46,10 @@ async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get
     
     # Paths
     raw_filename = f"{file_id}.{extension}"
-    raw_path = os.path.join(UPLOAD_DIR, raw_filename)
+    raw_path = os.path.join(UPLOAD_DIR, raw_filename).replace("\\", "/")
     
     processed_filename = f"{file_id}_clean.png"
-    processed_path = os.path.join(PROCESSED_DIR, processed_filename)
+    processed_path = os.path.join(PROCESSED_DIR, processed_filename).replace("\\", "/")
 
     # Save Uploaded File
     try:

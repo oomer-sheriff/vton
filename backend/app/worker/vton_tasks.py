@@ -22,7 +22,7 @@ def virtual_tryon_task(person_image_path: str, garment_id: str, output_path: str
         if not garment or not garment.processed_image_path:
             return {"status": "failed", "error": "Garment not found or not processed"}
 
-        garment_path = garment.processed_image_path
+        garment_path = garment.processed_image_path.replace("\\", "/")
         
         # Run Pipeline
         # In a real scenario, this returns a PIL Image or saves to path.
