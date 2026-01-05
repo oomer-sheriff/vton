@@ -50,7 +50,7 @@ yarn-error.log*
 pnpm-debug.log*
 .next/
 out/
-
+model_final_162be9.pkl
 # IDEs
 .vscode/
 .idea/

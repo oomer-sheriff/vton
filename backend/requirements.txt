@@ -25,5 +25,7 @@ mediapipe
 einops
 onnxruntime-gpu
 # Detectron2 (Linux/Docker preferred)
-git+https://github.com/facebookresearch/detectron2.git
+# git+https://github.com/facebookresearch/detectron2.git <- Installed manually in Dockerfile
+av>=8.0.3
+scipy>=1.5.4
 

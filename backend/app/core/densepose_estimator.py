@@ -17,39 +17,7 @@ class DensePoseEstimator:
         self.device = device
         self.predictor = None
         
-    def _ensure_config_exists(self):
-        """
-        Ensures the DensePose config files exist locally.
-        Detectron2 via pip doesn't always include project configs in model_zoo.
-        """
-        import requests
-        
-        config_dir = "app/core/configs"
-        os.makedirs(config_dir, exist_ok=True)
-        
-        base_url = "https://raw.githubusercontent.com/facebookresearch/detectron2/main/projects/DensePose/configs"
-        
-        # Files needed (Main config + Base config it inherits from)
-        files = [
-            "densepose_rcnn_R_50_FPN_s1x.yaml",
-            "Base-DensePose-RCNN-FPN.yaml"
-        ]
-        
-        local_main_config = os.path.join(config_dir, "densepose_rcnn_R_50_FPN_s1x.yaml")
-        
-        for file in files:
-            local_path = os.path.join(config_dir, file)
-            if not os.path.exists(local_path):
-                print(f"Downloading {file}...")
-                url = f"{base_url}/{file}"
-                response = requests.get(url)
-                if response.status_code == 200:
-                    with open(local_path, "wb") as f:
-                        f.write(response.content)
-                else:
-                    raise Exception(f"Failed to download {file}: {response.status_code}")
-                    
-        return local_main_config
+    # def _ensure_config_exists(self): -> Removed as we use installed files
 
     def add_densepose_config(self, cfg):
         """
@@ -68,17 +36,62 @@ class DensePoseEstimator:
         cfg.MODEL.ROI_DENSEPOSE_HEAD.LOSS_NAME = "DensePoseLoss"
         cfg.MODEL.ROI_DENSEPOSE_HEAD.LOSS_WEIGHTS = CN()
         cfg.MODEL.ROI_DENSEPOSE_HEAD.LOSS_WEIGHTS.MASK = 5.0
+        cfg.MODEL.ROI_DENSEPOSE_HEAD.FG_IOU_THRESHOLD = 0.5 # Mandatory key for DataFilter
+        cfg.MODEL.ROI_DENSEPOSE_HEAD.POOLER_RESOLUTION = 14
+        cfg.MODEL.ROI_DENSEPOSE_HEAD.POOLER_SAMPLING_RATIO = 0
+        cfg.MODEL.ROI_DENSEPOSE_HEAD.POOLER_TYPE = "ROIAlign"
+        cfg.MODEL.ROI_DENSEPOSE_HEAD.NUM_COARSE_SEGM_CHANNELS = 2
         
-        # Add simpler keys that might be top level or under ROI_HEADS in different versions
-        # But for the YAML file provided by facebook, we need the schema to match.
-        # The easiest way is to try importing the official add_densepose_config
         try:
-            from detectron2.projects.densepose import add_densepose_config
+            # Try loading from the module we added to PYTHONPATH
+            from densepose.config import add_densepose_config
             add_densepose_config(cfg)
+            print("Successfully loaded add_densepose_config from densepose.config")
         except ImportError:
-            # Fallback: Just allow new keys to be merged without strict checking
-            # This is a "hack" in detectron2 to allow loading custom YAMLs
-            cfg.set_new_allowed(True)
+            try:
+                # Fallback to standard detectron2 path (rarely works in pip installs)
+                from detectron2.projects.densepose import add_densepose_config
+                add_densepose_config(cfg)
+                print("Successfully loaded add_densepose_config from detectron2.projects.densepose")
+            except ImportError:
+                print("Could not import add_densepose_config. Using manual keys.")
+                cfg.set_new_allowed(True)
+
+    def _ensure_weights_exist(self):
+        import urllib.request
+        import ssl
+        
+        # Determine cache path
+        cache_dir = "app/core/weights"
+        os.makedirs(cache_dir, exist_ok=True)
+        local_weights_path = os.path.join(cache_dir, "model_final_162be9.pkl")
+        
+        if os.path.exists(local_weights_path) and os.path.getsize(local_weights_path) > 0:
+            return local_weights_path
+            
+        print(f"Downloading DensePose weights to {local_weights_path}...")
+        
+        # Primary Mirror (Yisol IDM-VTON)
+        url = "https://huggingface.co/yisol/IDM-VTON/resolve/main/densepose/model_final_162be9.pkl"
+        
+        try:
+            # Bypass SSL errors if inside container with old certs
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            
+            with urllib.request.urlopen(url, context=ctx) as response, open(local_weights_path, 'wb') as out_file:
+                if response.status != 200:
+                    raise Exception(f"HTTP {response.status}")
+                out_file.write(response.read())
+            print("Download complete.")
+            return local_weights_path
+        except Exception as e:
+            print(f"Failed to download weights from {url}: {e}")
+            # Clean up empty file
+            if os.path.exists(local_weights_path):
+                os.remove(local_weights_path)
+            raise e
 
     def load_model(self):
         if self.predictor is not None:
@@ -86,14 +99,53 @@ class DensePoseEstimator:
 
         print("Loading DensePose Predictor...")
         try:
+            # FORCE REGISTRATION
+            import densepose
+            import densepose.modeling
+            print("DensePose module imported (Classes Registered).")
+            
             cfg = get_cfg()
             self.add_densepose_config(cfg)
             
-            # Ensure configs are present
-            config_file = self._ensure_config_exists()
+            # Use the config from the installed detectron2 repository
+            # Since we cloned it to /opt/detectron2 in the Dockerfile
+            config_file = "/opt/detectron2/projects/DensePose/configs/densepose_rcnn_R_50_FPN_s1x.yaml"
             
+            if not os.path.exists(config_file):
+                raise FileNotFoundError(f"DensePose config not found at {config_file}. Ensure Dockerfile clones detectron2.")
+
             # Initialize config
             cfg.merge_from_file(config_file)
+            
+            # Use manually placed weights if available (Docker mount)
+            # User moved file to /app/core/weights (mapped to /app/app/core/weights in container usually, or just check relative)
+            # Assuming standard docker mapping where backend/ -> /app
+            manual_weights_path = "/app/app/core/weights/model_final_162be9.pkl"
+            
+            if not os.path.exists(manual_weights_path):
+                 # Try other common path just in case
+                 manual_weights_path = "/app/core/weights/model_final_162be9.pkl"
+
+            if os.path.exists(manual_weights_path):
+                print(f"Using manually placed weights: {manual_weights_path}")
+                cfg.MODEL.WEIGHTS = manual_weights_path
+            else:
+                # Fallback to download (which might fail)
+                print(f"Manual weights not found at {manual_weights_path}, trying download...")
+                local_weights = self._ensure_weights_exist()
+                cfg.MODEL.WEIGHTS = local_weights
+            
+            cfg.MODEL.DEVICE = self.device
+            cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5 
+            
+            self.predictor = DefaultPredictor(cfg)
+            print("DensePose Predictor Loaded.")
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"Failed to load DensePose: {e}")
+            raise e
             
             # Hardcoded weights URL for this specific model
             cfg.MODEL.WEIGHTS = "https://dl.fbaipublicfiles.com/detectron2/DensePose/densepose_rcnn_R_50_FPN_s1x/165712039/model_final_162be9.pkl"
@@ -121,6 +173,8 @@ class DensePoseEstimator:
         
         with torch.no_grad():
             outputs = self.predictor(image_bgr)["instances"]
+            # Move to CPU for visualization/numpy conversion
+            outputs = outputs.to("cpu")
             
         # Extract DensePose results
         if not outputs.has("pred_densepose"):
@@ -134,24 +188,6 @@ class DensePoseEstimator:
         
         # Simplified approach: Use Visualizer to draw "DensePose" mode
         # However, IDM-VTON often expects the raw I, U, V channels mapped to RGB.
-        
-        # For this implementation, we will try to extract the i, u, v fields directly if possible 
-        # or use a standard visualization that IDM-VTON accepts.
-        
-        # Let's rely on the visualizer for now as it handles the mapping
-        # But we need result clearly as IUV.
-        
-        # Actually, let's extract the chart_result
-        densepose_result = outputs.pred_densepose
-        
-        # This part effectively requires 'detectron2.projects.densepose' logic
-        # If that's not easily importable, we might simply return the segmentation mask for now
-        # BUT IDM-VTON *needs* densepose.
-        
-        # Let's assume for this step we return the original image as a dummy if we can't extract, 
-        # but since we have detectron2, let's try to get the 'I' 'U' 'V' mapping.
-        
-        # (Implementation of manual IUV extraction is lengthy, let's look for a helper or assume standard visualizer)
         
         # PROPOSED: Just return the visualized densepose which looks like the colorful body map.
         visualizer = Visualizer(image_bgr, MetadataCatalog.get(self.predictor.cfg.DATASETS.TEST[0]))
