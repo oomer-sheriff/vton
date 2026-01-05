@@ -42,6 +42,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from fastapi.staticfiles import StaticFiles
+app.mount("/media", StaticFiles(directory="media"), name="media")
+
+
 # Set all CORS enabled origins
 app.add_middleware(
     CORSMiddleware,

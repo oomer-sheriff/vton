@@ -1,193 +1,62 @@
 "use client";
 
-import { useState } from "react";
-import { Upload, X, Loader2, CheckCircle, Shirt } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import GarmentSelector from "@/components/GarmentSelector";
+import GarmentUploader from "@/components/GarmentUploader";
+import MagicMirror from "@/components/MagicMirror";
+import { Garment } from "@/types";
+import { Shirt } from "lucide-react";
 
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [tasks, setTasks] = useState<{ bg: string; meta: string } | null>(null);
-  const [results, setResults] = useState<any | null>(null);
+  const [garments, setGarments] = useState<Garment[]>([]);
+  const [selectedGarmentId, setSelectedGarmentId] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selected = e.target.files[0];
-      setFile(selected);
-      setPreview(URL.createObjectURL(selected));
-      setResults(null);
-      setTasks(null);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file) return;
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
+  const fetchGarments = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/ingestion/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch("http://localhost:8000/api/v1/ingestion/garments");
       const data = await res.json();
-
-      console.log("Upload response:", data);
-
-      if (res.ok) {
-        setTasks({
-          bg: data.tasks.background_removal,
-          meta: data.tasks.metadata_extraction
-        });
-        // Start polling
-        pollStatus(data.tasks.background_removal, "bg");
-        pollStatus(data.tasks.metadata_extraction, "meta");
-      } else {
-        alert("Upload failed: " + data.detail);
-        setUploading(false);
-      }
+      setGarments(data);
     } catch (err) {
-      console.error(err);
-      alert("Error uploading file");
-      setUploading(false);
+      console.error("Failed to fetch garments", err);
     }
   };
 
-  const pollStatus = async (taskId: string, type: "bg" | "meta") => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`http://localhost:8000/api/v1/ingestion/status/${taskId}`);
-        const data = await res.json();
-
-        console.log(`Polling ${type}:`, data);
-
-        if (data.status === "SUCCESS") {
-          clearInterval(interval);
-          setResults((prev: any) => ({ ...prev, [type]: data.result }));
-
-          // If this was the last pending task (simplification)
-          setUploading(false); // Ideally wait for both
-        } else if (data.status === "FAILURE") {
-          clearInterval(interval);
-          alert(`Task ${type} failed`);
-          setUploading(false);
-        }
-      } catch (e) {
-        clearInterval(interval);
-      }
-    }, 2000);
-  };
+  useEffect(() => {
+    fetchGarments();
+  }, []);
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white p-8 font-sans">
-      <div className="max-w-4xl mx-auto space-y-12">
+    <main className="min-h-screen bg-black text-white p-4 lg:p-8 font-sans">
+      <header className="mb-8 flex items-center space-x-3">
+        <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-900/20">
+          <Shirt className="w-6 h-6 text-white" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-neutral-400">
+          VTON Magic Mirror
+        </h1>
+      </header>
 
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Garment Ingestion
-          </h1>
-          <p className="text-neutral-400">Upload a raw photo to process it for Virtual Try-On.</p>
+      <div className="grid lg:grid-cols-12 gap-8 max-w-7xl mx-auto h-[85vh]">
+        {/* Left Panel: Closet (Scrollable) */}
+        <div className="lg:col-span-4 flex flex-col space-y-6 h-full overflow-hidden">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-neutral-200">Your Closet</h2>
+            <span className="text-xs text-neutral-500 bg-neutral-900 px-2 py-1 rounded-full">{garments.length} items</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+            <GarmentUploader onUploadComplete={fetchGarments} />
+            <GarmentSelector
+              garments={garments}
+              selectedId={selectedGarmentId}
+              onSelect={(id) => setSelectedGarmentId(id)}
+            />
+          </div>
         </div>
 
-        {/* Upload Area */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 shadow-2xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-            {/* Input Section */}
-            <div className="space-y-6">
-              <div
-                className="border-2 border-dashed border-neutral-700 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-purple-500 transition-colors cursor-pointer relative h-64 bg-neutral-900/50"
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-
-                {preview ? (
-                  <img src={preview} alt="Preview" className="h-full w-full object-contain rounded-lg" />
-                ) : (
-                  <>
-                    <Upload className="w-12 h-12 text-neutral-500 mb-4" />
-                    <p className="text-neutral-300 font-medium">Click to upload or drag image</p>
-                    <p className="text-sm text-neutral-500 mt-2">JPEG, PNG, WEBP (Max 10MB)</p>
-                  </>
-                )}
-              </div>
-
-              <button
-                onClick={handleUpload}
-                disabled={!file || uploading}
-                className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${!file || uploading
-                  ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
-                  : "bg-white text-black hover:bg-neutral-200"
-                  }`}
-              >
-                {uploading ? (
-                  <> <Loader2 className="animate-spin" /> Processing... </>
-                ) : (
-                  <> <Shirt className="w-5 h-5" /> Ingest Garment </>
-                )}
-              </button>
-            </div>
-
-            {/* Results Section */}
-            <div className="space-y-6">
-              <h3 className="text-xl font-semibold text-neutral-300 flex items-center gap-2">
-                Processing Results
-              </h3>
-
-              {/* Background Removal Result */}
-              <div className="bg-neutral-950 rounded-xl p-4 border border-neutral-800">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-purple-400">Background Removal (rembg)</span>
-                  {results?.bg ? <CheckCircle className="w-4 h-4 text-green-500" /> : <div className="w-4 h-4 rounded-full border border-neutral-700" />}
-                </div>
-
-                {results?.bg ? (
-                  // Since local path is returned by backend, in real app we'd serve this via static URL.
-                  // For demo, we might not see it unless we map the volume. 
-                  // We will assume backend serves it or just show success msg.
-                  <div className="text-green-400 text-sm">
-                    Process Complete! <br />
-                    <span className="text-xs text-neutral-500 break-all">{results.bg.output_path}</span>
-                  </div>
-                ) : (
-                  <div className="h-32 flex items-center justify-center text-neutral-600 text-sm italic">
-                    {uploading ? "Removing background..." : "Waiting for upload..."}
-                  </div>
-                )}
-              </div>
-
-              {/* Metadata Result */}
-              <div className="bg-neutral-950 rounded-xl p-4 border border-neutral-800">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-pink-400">AI Metadata (Gemini)</span>
-                  {results?.meta ? <CheckCircle className="w-4 h-4 text-green-500" /> : <div className="w-4 h-4 rounded-full border border-neutral-700" />}
-                </div>
-
-                {results?.meta ? (
-                  <pre className="text-xs text-neutral-300 bg-neutral-900 p-2 rounded overflow-auto h-32">
-                    {results.meta.metadata
-                      ? JSON.stringify(JSON.parse(results.meta.metadata), null, 2)
-                      : JSON.stringify(results.meta, null, 2)
-                    }
-                  </pre>
-                ) : (
-                  <div className="h-32 flex items-center justify-center text-neutral-600 text-sm italic">
-                    {uploading ? "Extracting tags..." : "Waiting for upload..."}
-                  </div>
-                )}
-              </div>
-
-            </div>
-
-          </div>
+        {/* Right Panel: Try-On Area (Fixed) */}
+        <div className="lg:col-span-8 h-full">
+          <MagicMirror selectedGarmentId={selectedGarmentId} />
         </div>
       </div>
     </main>

@@ -86,6 +86,23 @@ async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get
         "raw_path": raw_path
     }
 
+@router.get("/garments")
+def list_garments(db: Session = Depends(get_db)):
+    """
+    List all fully processed garments.
+    """
+    garments = db.query(Garment).filter(Garment.processed_image_path.isnot(None)).order_by(Garment.created_at.desc()).all()
+    
+    return [
+        {
+            "id": str(g.id),
+            # Normalize path for frontend (remove backslashes if any lingering, though we fixed ingestion)
+            "image": g.processed_image_path.replace("\\", "/"), 
+            "metadata": g.metadata_json
+        }
+        for g in garments
+    ]
+
 @router.get("/status/{task_id}")
 def get_task_status(task_id: str):
     from app.core.celery_app import celery_app
