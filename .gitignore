@@ -34,13 +34,14 @@ ENV/
 .env.*.local
 
 # FastAPI / Backend
+backend/media/results/*
 backend/media/raw/*
 !backend/media/raw/.gitkeep
 backend/media/processed/*
 !backend/media/processed/.gitkeep
 celerybeat-schedule
 celerybeat.pid
-
+backend/app/models/densepose/*
 # Node.js / Frontend
 node_modules/
 npm-debug.log*
