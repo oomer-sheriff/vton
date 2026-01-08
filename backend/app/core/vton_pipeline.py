@@ -39,7 +39,7 @@ class VTONPipeline:
                 # 3. Load ControlNet (DensePose) & Inpainting Model
                 print("Loading ControlNet + Inpainting Model + IP-Adapter Plus...")
                 
-                from diffusers import ControlNetModel, StableDiffusionControlNetInpaintPipeline
+                from diffusers import ControlNetModel, StableDiffusionControlNetInpaintPipeline, AutoencoderKL
                 
                 # Load DensePose ControlNet
                 controlnet = ControlNetModel.from_pretrained(
@@ -48,17 +48,32 @@ class VTONPipeline:
                 ).to(self.device)
 
                 model_id = "runwayml/stable-diffusion-inpainting"
+                
+                # Use stabilityai's MSE VAE (known to fix purple artifacts in fp16)
+                # Loading in fp16 to match pipeline and avoid "Input type mismatch" errors
+                vae = AutoencoderKL.from_pretrained(
+                    "stabilityai/sd-vae-ft-mse",
+                    torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
+                ).to(self.device)
+
                 self.pipeline = StableDiffusionControlNetInpaintPipeline.from_pretrained(
                     model_id,
                     controlnet=controlnet,
+                    vae=vae, 
                     torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
                     variant="fp16" if self.device == "cuda" else None,
                     safety_checker=None
                 ).to(self.device)
                 
+                # Enable VAE Tiling to prevent OOM
+                self.pipeline.enable_vae_tiling()
+                
                 # Load IP-Adapter Plus
                 self.pipeline.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter-plus_sd15.bin")
                 self.pipeline.set_ip_adapter_scale(1.0) 
+                
+                self.pipeline.scheduler = EulerDiscreteScheduler.from_config(self.pipeline.scheduler.config)
+                print("VTON Pipeline Loaded (with ControlNet & fp32 VAE).")
                 
                 self.pipeline.scheduler = EulerDiscreteScheduler.from_config(self.pipeline.scheduler.config)
                 print("VTON Pipeline Loaded (with ControlNet).")
