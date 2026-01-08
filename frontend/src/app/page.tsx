@@ -10,10 +10,15 @@ import { Shirt } from "lucide-react";
 export default function Home() {
   const [garments, setGarments] = useState<Garment[]>([]);
   const [selectedGarmentId, setSelectedGarmentId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchGarments = async () => {
+  const fetchGarments = async (query = "") => {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/ingestion/garments");
+      const url = query
+        ? `http://localhost:8000/api/v1/ingestion/garments?query=${encodeURIComponent(query)}`
+        : "http://localhost:8000/api/v1/ingestion/garments";
+
+      const res = await fetch(url);
       const data = await res.json();
       setGarments(data);
     } catch (err) {
@@ -22,8 +27,12 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchGarments();
-  }, []);
+    // Debounce search
+    const timer = setTimeout(() => {
+      fetchGarments(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   return (
     <main className="min-h-screen bg-black text-white p-4 lg:p-8 font-sans">
@@ -44,8 +53,20 @@ export default function Home() {
             <span className="text-xs text-neutral-500 bg-neutral-900 px-2 py-1 rounded-full">{garments.length} items</span>
           </div>
 
+          {/* Search Bar */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search closet (e.g. 'Red Dress')..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 pl-10 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
+            />
+            <svg className="w-4 h-4 text-neutral-500 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
+
           <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
-            <GarmentUploader onUploadComplete={fetchGarments} />
+            <GarmentUploader onUploadComplete={() => fetchGarments(searchQuery)} />
             <GarmentSelector
               garments={garments}
               selectedId={selectedGarmentId}

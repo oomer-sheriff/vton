@@ -98,7 +98,14 @@ def extract_metadata_task(image_path: str, garment_id: str):
         try:
             garment = db.query(Garment).filter(Garment.id == UUID(garment_id)).first()
             if garment:
-                garment.metadata_json = metadata_obj
+                # Merge with existing metadata (Manual inputs take precedence)
+                existing_meta = garment.metadata_json or {}
+                # Start with VLM data
+                merged_meta = metadata_obj.copy()
+                # Overwrite with existing manual data (so user input is respected)
+                merged_meta.update(existing_meta)
+                
+                garment.metadata_json = merged_meta
                 db.commit()
         finally:
             db.close()

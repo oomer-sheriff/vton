@@ -1,7 +1,8 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 import shutil
 import os
 import uuid
+from typing import Optional
 from app.worker.tasks import remove_background_task, extract_metadata_task
 
 router = APIRouter()
@@ -28,9 +29,15 @@ def get_db():
         db.close()
 
 @router.post("/upload")
-async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_garment(
+    file: UploadFile = File(...), 
+    category: Optional[str] = Form(None),
+    color: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
     """
-    Upload a raw garment image.
+    Upload a raw garment image with optional manual metadata.
     Creates a Garment record in DB.
     Triggers background removal and metadata extraction tasks.
     Returns task IDs and garment ID.
@@ -58,11 +65,18 @@ async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
 
+    # Construct Initial Metadata
+    initial_metadata = {}
+    if category: initial_metadata['category'] = category
+    if color: initial_metadata['color'] = color
+    if description: initial_metadata['description'] = description
+
     # Create DB Record
     garment = Garment(
         id=file_uuid,
         filename=file.filename,
-        raw_image_path=raw_path
+        raw_image_path=raw_path,
+        metadata_json=initial_metadata
     )
     db.add(garment)
     db.commit()
@@ -87,11 +101,30 @@ async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get
     }
 
 @router.get("/garments")
-def list_garments(db: Session = Depends(get_db)):
+def list_garments(query: Optional[str] = None, db: Session = Depends(get_db)):
     """
     List all fully processed garments.
+    Optional 'query' parameter filters by metadata (category, color, description, tags).
     """
     garments = db.query(Garment).filter(Garment.processed_image_path.isnot(None)).order_by(Garment.created_at.desc()).all()
+    
+    # Filter in Python for flexibility with the unstructured JSONB
+    if query:
+        query_lower = query.lower()
+        filtered_garments = []
+        for g in garments:
+            meta = g.metadata_json or {}
+            # Searchable fields
+            search_text = " ".join([
+                str(meta.get('category', '')), 
+                str(meta.get('color', '')), 
+                str(meta.get('description', '')),
+                " ".join(meta.get('style_tags', []))
+            ]).lower()
+            
+            if query_lower in search_text:
+                filtered_garments.append(g)
+        garments = filtered_garments
     
     return [
         {
