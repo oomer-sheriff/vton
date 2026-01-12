@@ -5,7 +5,9 @@ from PIL import Image
 import os
 import numpy as np
 import io
+import gc
 from app.core.densepose_estimator import DensePoseEstimator
+from app.core.config import settings
 
 class VTONPipeline:
     _instance = None
@@ -84,6 +86,33 @@ class VTONPipeline:
             except Exception as e:
                 print(f"Failed to load VTON model: {e}")
                 raise e
+
+    def unload_model(self):
+        print("Unloading VTON Pipeline components to free memory...")
+        
+        if self.pipeline:
+            del self.pipeline
+            self.pipeline = None
+            
+        if self.mask_session:
+            del self.mask_session
+            self.mask_session = None
+            
+        if self.densepose_estimator:
+            # DensePose estimator might have its own cleanup if needed, 
+            # but usually dropping the reference is enough if it holds the model
+            del self.densepose_estimator
+            self.densepose_estimator = None
+            
+        # Clear CUDA cache
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+            
+        # Force GC
+        gc.collect()
+        
+        print("VTON Pipeline unloaded.")
 
     def preprocess_image(self, image_path):
         return Image.open(image_path).convert("RGB").resize((768, 1024))
@@ -177,6 +206,10 @@ class VTONPipeline:
         
         output_path = person_image_path.replace(".jpg", "_tryon.png").replace(".png", "_tryon.png").replace(".webp", "_tryon.png")
         result.save(output_path)
+        
+        # Check config to unload
+        if settings.UNLOAD_PIPELINE_AFTER_TASK:
+            self.unload_model()
         
         return output_path
 

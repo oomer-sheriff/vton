@@ -28,6 +28,9 @@ class Settings(BaseSettings):
 
     # Keys based on environment
     GEMINI_API_KEY: Optional[str] = None
+    
+    # Resource Management
+    UNLOAD_PIPELINE_AFTER_TASK: bool = True
 
     class Config:
         env_file = ".env"
