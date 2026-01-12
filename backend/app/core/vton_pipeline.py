@@ -69,7 +69,7 @@ class VTONPipeline:
                 
                 # Load IP-Adapter Plus
                 self.pipeline.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter-plus_sd15.bin")
-                self.pipeline.set_ip_adapter_scale(1.0) 
+                self.pipeline.set_ip_adapter_scale(settings.VTON_IP_ADAPTER_SCALE)
                 
                 self.pipeline.scheduler = EulerDiscreteScheduler.from_config(self.pipeline.scheduler.config)
                 
@@ -181,14 +181,20 @@ class VTONPipeline:
              densepose_img = Image.new("RGB", person_img.size, (0, 0, 0))
 
         # 3. Run Inference with ControlNet + IP-Adapter Plus
-        prompt = "model wearing this garment, best quality, photorealistic"
-        negative_prompt = "monochrome, lowres, bad anatomy, worst quality, low quality"
+        prompt = "model wearing this garment, best quality, photorealistic, accurate colors, good anatomy, high detail, high resolution"
+        negative_prompt = "low-resolution, bad anatomy, worst quality, low quality"
 
         generator = torch.Generator(device=self.device).manual_seed(42)
         
         # Ensure DensePose is RGB if present
         if densepose_img:
             densepose_img = densepose_img.convert("RGB")
+
+        # Apply VAE full precision if configured (helps with color accuracy)
+        original_vae_dtype = self.pipeline.vae.dtype
+        if settings.VTON_VAE_FULL_PRECISION and self.device == "cuda":
+            self.pipeline.vae.to(dtype=torch.float32)
+            print("VAE set to float32 for color accuracy.")
 
         result = self.pipeline(
             prompt=prompt,
@@ -197,12 +203,16 @@ class VTONPipeline:
             mask_image=mask_img,
             control_image=densepose_img,  # Pass DensePose to ControlNet
             ip_adapter_image=garment_img, # Pass Garment to IP-Adapter
-            controlnet_conditioning_scale=1.0, # Strong shape guidance
-            guidance_scale=7.5,
+            controlnet_conditioning_scale=settings.VTON_CONTROLNET_SCALE,
+            guidance_scale=settings.VTON_GUIDANCE_SCALE,
             num_inference_steps=30,
-            strength=0.99, 
+            strength=settings.VTON_INFERENCE_STRENGTH, 
             generator=generator
         ).images[0]
+        
+        # Restore VAE dtype
+        if settings.VTON_VAE_FULL_PRECISION and self.device == "cuda":
+            self.pipeline.vae.to(dtype=original_vae_dtype)
         
         output_path = person_image_path.replace(".jpg", "_tryon.png").replace(".png", "_tryon.png").replace(".webp", "_tryon.png")
         result.save(output_path)

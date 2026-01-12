@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     
     # Resource Management
     UNLOAD_PIPELINE_AFTER_TASK: bool = True
+    
+    # VTON Pipeline Tuning (for color accuracy)
+    VTON_IP_ADAPTER_SCALE: float = 1.0          # Lower = less garment style influence (default was 1.0)
+    VTON_CONTROLNET_SCALE: float = 1.0        # Lower = less pose rigidity (default was 1.0)
+    VTON_INFERENCE_STRENGTH: float = 0.99       # Lower = preserve more of original (default was 0.99)
+    VTON_GUIDANCE_SCALE: float = 7.5             # CFG scale for prompt adherence
+    VTON_VAE_FULL_PRECISION: bool = False       # Decode VAE in float32 for better colors
 
     class Config:
         env_file = ".env"

@@ -66,7 +66,7 @@ def extract_metadata_task(image_path: str, garment_id: str):
              return {"status": "skipped", "reason": "No API Key"}
 
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
 
         # Load image
         img = Image.open(image_path)
