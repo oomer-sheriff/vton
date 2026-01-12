@@ -45,7 +45,7 @@ class VTONPipeline:
                 controlnet = ControlNetModel.from_pretrained(
                     "MnLgt/densepose", 
                     torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
-                ).to(self.device)
+                ) # Do not move to device yet
 
                 model_id = "runwayml/stable-diffusion-inpainting"
                 
@@ -54,7 +54,7 @@ class VTONPipeline:
                 vae = AutoencoderKL.from_pretrained(
                     "stabilityai/sd-vae-ft-mse",
                     torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
-                ).to(self.device)
+                ) # Do not move to device yet
 
                 self.pipeline = StableDiffusionControlNetInpaintPipeline.from_pretrained(
                     model_id,
@@ -63,19 +63,22 @@ class VTONPipeline:
                     torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
                     variant="fp16" if self.device == "cuda" else None,
                     safety_checker=None
-                ).to(self.device)
-                
-                # Enable VAE Tiling to prevent OOM
-                self.pipeline.enable_vae_tiling()
+                )
                 
                 # Load IP-Adapter Plus
                 self.pipeline.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter-plus_sd15.bin")
                 self.pipeline.set_ip_adapter_scale(1.0) 
                 
                 self.pipeline.scheduler = EulerDiscreteScheduler.from_config(self.pipeline.scheduler.config)
-                print("VTON Pipeline Loaded (with ControlNet & fp32 VAE).")
                 
-                self.pipeline.scheduler = EulerDiscreteScheduler.from_config(self.pipeline.scheduler.config)
+                # Enable VAE Tiling to prevent OOM
+                self.pipeline.enable_vae_tiling()
+
+                # Enable Model CPU Offloading (Crucial for 4GB VRAM)
+                # This moves models to CPU and only loads the active one to GPU
+                # MUST BE CALLED LAST to include all loaded adapters
+                self.pipeline.enable_model_cpu_offload()
+
                 print("VTON Pipeline Loaded (with ControlNet).")
                 
             except Exception as e:
