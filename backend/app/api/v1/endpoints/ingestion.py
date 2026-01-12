@@ -19,6 +19,8 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.garment import Garment
+from app.core.embeddings import embedding_service
+
 
 # Dependency
 def get_db():
@@ -70,13 +72,18 @@ async def upload_garment(
     if category: initial_metadata['category'] = category
     if color: initial_metadata['color'] = color
     if description: initial_metadata['description'] = description
+    
+    # Generate Embedding
+    embedding_text = f"{color or ''} {category or ''} {description or ''}".strip()
+    embedding_vector = embedding_service.generate_embedding(embedding_text)
 
     # Create DB Record
     garment = Garment(
         id=file_uuid,
         filename=file.filename,
         raw_image_path=raw_path,
-        metadata_json=initial_metadata
+        metadata_json=initial_metadata,
+        embedding=embedding_vector
     )
     db.add(garment)
     db.commit()
@@ -110,21 +117,18 @@ def list_garments(query: Optional[str] = None, db: Session = Depends(get_db)):
     
     # Filter in Python for flexibility with the unstructured JSONB
     if query:
-        query_lower = query.lower()
-        filtered_garments = []
-        for g in garments:
-            meta = g.metadata_json or {}
-            # Searchable fields
-            search_text = " ".join([
-                str(meta.get('category', '')), 
-                str(meta.get('color', '')), 
-                str(meta.get('description', '')),
-                " ".join(meta.get('style_tags', []))
-            ]).lower()
-            
-            if query_lower in search_text:
-                filtered_garments.append(g)
-        garments = filtered_garments
+        # Proposed: Semantic Search via PGVector
+        embedding_query = embedding_service.generate_embedding(query)
+        if embedding_query:
+            # L2 Distance Sort (Similarity)
+            garments = db.query(Garment).filter(
+                Garment.processed_image_path.isnot(None)
+            ).order_by(
+                Garment.embedding.l2_distance(embedding_query)
+            ).limit(20).all()
+        else:
+           # Fallback to text search if embedding fails
+           pass
     
     return [
         {

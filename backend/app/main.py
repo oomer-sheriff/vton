@@ -14,9 +14,22 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Create Tables
+    # Startup: Create Tables & Extensions
     try:
         logger.info("Creating database tables...")
+        
+        # Enable pgvector extension
+        from sqlalchemy import text
+        with engine.connect() as connection:
+             connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+             connection.commit()
+             # Migration: Add embedding column if not exists (for existing tables)
+             try:
+                 connection.execute(text("ALTER TABLE garments ADD COLUMN IF NOT EXISTS embedding vector(384)"))
+                 connection.commit()
+             except Exception as e:
+                 logger.warning(f"Migration warning (embedding column): {e}")
+
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created.")
     except Exception as e:
