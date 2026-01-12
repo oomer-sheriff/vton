@@ -1,7 +1,8 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 import shutil
 import os
 import uuid
+from typing import Optional
 from app.worker.tasks import remove_background_task, extract_metadata_task
 
 router = APIRouter()
@@ -18,6 +19,8 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.garment import Garment
+from app.core.embeddings import embedding_service
+
 
 # Dependency
 def get_db():
@@ -28,9 +31,15 @@ def get_db():
         db.close()
 
 @router.post("/upload")
-async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_garment(
+    file: UploadFile = File(...), 
+    category: Optional[str] = Form(None),
+    color: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
     """
-    Upload a raw garment image.
+    Upload a raw garment image with optional manual metadata.
     Creates a Garment record in DB.
     Triggers background removal and metadata extraction tasks.
     Returns task IDs and garment ID.
@@ -46,10 +55,10 @@ async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get
     
     # Paths
     raw_filename = f"{file_id}.{extension}"
-    raw_path = os.path.join(UPLOAD_DIR, raw_filename)
+    raw_path = os.path.join(UPLOAD_DIR, raw_filename).replace("\\", "/")
     
     processed_filename = f"{file_id}_clean.png"
-    processed_path = os.path.join(PROCESSED_DIR, processed_filename)
+    processed_path = os.path.join(PROCESSED_DIR, processed_filename).replace("\\", "/")
 
     # Save Uploaded File
     try:
@@ -58,11 +67,23 @@ async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
 
+    # Construct Initial Metadata
+    initial_metadata = {}
+    if category: initial_metadata['category'] = category
+    if color: initial_metadata['color'] = color
+    if description: initial_metadata['description'] = description
+    
+    # Generate Embedding
+    embedding_text = f"{color or ''} {category or ''} {description or ''}".strip()
+    embedding_vector = embedding_service.generate_embedding(embedding_text)
+
     # Create DB Record
     garment = Garment(
         id=file_uuid,
         filename=file.filename,
-        raw_image_path=raw_path
+        raw_image_path=raw_path,
+        metadata_json=initial_metadata,
+        embedding=embedding_vector
     )
     db.add(garment)
     db.commit()
@@ -85,6 +106,39 @@ async def upload_garment(file: UploadFile = File(...), db: Session = Depends(get
         },
         "raw_path": raw_path
     }
+
+@router.get("/garments")
+def list_garments(query: Optional[str] = None, db: Session = Depends(get_db)):
+    """
+    List all fully processed garments.
+    Optional 'query' parameter filters by metadata (category, color, description, tags).
+    """
+    garments = db.query(Garment).filter(Garment.processed_image_path.isnot(None)).order_by(Garment.created_at.desc()).all()
+    
+    # Filter in Python for flexibility with the unstructured JSONB
+    if query:
+        # Proposed: Semantic Search via PGVector
+        embedding_query = embedding_service.generate_embedding(query)
+        if embedding_query:
+            # L2 Distance Sort (Similarity)
+            garments = db.query(Garment).filter(
+                Garment.processed_image_path.isnot(None)
+            ).order_by(
+                Garment.embedding.l2_distance(embedding_query)
+            ).limit(20).all()
+        else:
+           # Fallback to text search if embedding fails
+           pass
+    
+    return [
+        {
+            "id": str(g.id),
+            # Normalize path for frontend (remove backslashes if any lingering, though we fixed ingestion)
+            "image": g.processed_image_path.replace("\\", "/"), 
+            "metadata": g.metadata_json
+        }
+        for g in garments
+    ]
 
 @router.get("/status/{task_id}")
 def get_task_status(task_id: str):
