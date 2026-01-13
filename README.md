@@ -1,7 +1,7 @@
 # VTON (Virtual Try-On) Application
 
 An intelligent, microservice-based Virtual Try-On application. It combines semantic search with generative AI to provide a seamless product discovery and try-on experience.
-*(Demo link: [Add Demo Link Here])*
+
 
 ## Features
 - **Virtual Try-On**: Generate realistic try-on images using advanced diffusion models.
