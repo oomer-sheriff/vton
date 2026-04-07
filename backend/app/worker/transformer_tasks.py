@@ -1,18 +1,19 @@
 from celery import shared_task
-from app.core.vton_pipeline import vton_pipeline
+from app.core.comfyui_pipeline import comfyui_pipeline
 from app.db.session import SessionLocal
 from app.models.garment import Garment
 from uuid import UUID
 import shutil
 import os
 
-@shared_task(name="app.worker.vton_tasks.virtual_tryon_task")
-def virtual_tryon_task(person_image_path: str, garment_id: str, output_path: str):
+
+@shared_task(name="app.worker.transformer_tasks.transformer_tryon_task")
+def transformer_tryon_task(person_image_path: str, garment_id: str, output_path: str):
     """
-    Performs Virtual Try-On.
-    1. Fetches garment processed path from DB.
-    2. Runs VTON pipeline.
-    3. Saves result.
+    Performs Virtual Try-On using the Flux 2 / ComfyUI transformer pipeline.
+    1. Fetches garment processed_image_path from DB.
+    2. Dispatches job to ComfyUI service via HTTP.
+    3. Moves result to output_path.
     """
     try:
         db = SessionLocal()
@@ -23,16 +24,13 @@ def virtual_tryon_task(person_image_path: str, garment_id: str, output_path: str
             return {"status": "failed", "error": "Garment not found or not processed"}
 
         garment_path = garment.processed_image_path.replace("\\", "/")
-        
-        # Run Pipeline
-        # In a real scenario, this returns a PIL Image or saves to path.
-        # Our current skeleton returns the path it saved to.
-        result_path = vton_pipeline.run(person_image_path, garment_path)
-        
-        # Ensure result is moved/saved to final output_path if pipeline didn't do it
+
+        result_path = comfyui_pipeline.run(person_image_path, garment_path)
+
         if result_path != output_path and os.path.exists(result_path):
-             shutil.move(result_path, output_path)
+            shutil.move(result_path, output_path)
 
         return {"status": "completed", "result_path": output_path}
+
     except Exception as e:
         return {"status": "failed", "error": str(e)}

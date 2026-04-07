@@ -17,9 +17,13 @@ services:
       - redis
       - rabbitmq
 
-  worker:
+  # -----------------------------------------------------------------------
+  # Inpainting worker: SD 1.5 + DensePose + IP-Adapter
+  # Requires a GPU. Consumes the 'gpu-inpainting' queue.
+  # -----------------------------------------------------------------------
+  worker-inpainting:
     build: ./backend
-    command: celery -A app.core.celery_app worker --loglevel=info -P solo
+    command: celery -A app.core.celery_app worker --loglevel=info -P solo -Q gpu-inpainting,cpu-worker
     volumes:
       - ./backend:/app
     environment:
@@ -30,6 +34,52 @@ services:
       - db
       - redis
       - rabbitmq
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+
+  # -----------------------------------------------------------------------
+  # Transformer worker: Flux 2 via ComfyUI (no direct GPU — offloaded to comfyui)
+  # Consumes the 'gpu-transformer' queue and dispatches jobs over HTTP.
+  # -----------------------------------------------------------------------
+  worker-transformer:
+    build: ./backend
+    command: celery -A app.core.celery_app worker --loglevel=info -P solo -Q gpu-transformer
+    volumes:
+      - ./backend:/app
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+      - comfyui
+
+  # -----------------------------------------------------------------------
+  # ComfyUI inference server: Flux 2 Klein 4B (GGUF) + ComfyUI-GGUF custom node
+  # GPU assigned here. Exposes port 8188 on the internal network.
+  # -----------------------------------------------------------------------
+  comfyui:
+    image: yanwk/comfyui-boot:cu128-slim
+    ports:
+      - "8188:8188"
+    environment:
+      - CLI_ARGS=--listen 0.0.0.0 --port 8188
+    volumes:
+      - ./backend/custom_nodes:/workspace/ComfyUI/custom_nodes
+      - ./backend/app/core/weights:/workspace/ComfyUI/models/unet
+      - ./backend/app/core/weights:/workspace/ComfyUI/models/clip
+      - ./backend/app/core/weights:/workspace/ComfyUI/models/vae
+      - ./backend/app/core/weights:/workspace/ComfyUI/models/loras
+      # Shared media volume: FastAPI writes person images here; ComfyUI reads from input/
+      - ./backend/media:/workspace/ComfyUI/input
+      - ./backend/media/results:/workspace/ComfyUI/output
     deploy:
       resources:
         reservations:

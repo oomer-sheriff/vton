@@ -5,13 +5,14 @@ celery_app = Celery(
     "worker",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=['app.worker.tasks', 'app.worker.vton_tasks']
+    include=['app.worker.tasks', 'app.worker.vton_tasks', 'app.worker.transformer_tasks']
 )
 
 celery_app.conf.task_routes = {
-    "app.worker.tasks.remove_background_task": "gpu-worker",
-    "app.worker.tasks.extract_metadata_task": "cpu-worker",
-    "app.worker.tasks.virtual_tryon_task": "gpu-worker",
+    "app.worker.tasks.remove_background_task":                  {"queue": "gpu-inpainting"},
+    "app.worker.tasks.extract_metadata_task":                   {"queue": "cpu-worker"},
+    "app.worker.vton_tasks.virtual_tryon_task":                 {"queue": "gpu-inpainting"},
+    "app.worker.transformer_tasks.transformer_tryon_task":      {"queue": "gpu-transformer"},
 }
 
 celery_app.conf.update(
@@ -21,7 +22,10 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_queues={
-        "gpu-worker": {"exchange": "gpu-worker", "routing_key": "gpu-worker"},
+        # Inpainting mode: SD 1.5 + DensePose + IP-Adapter (GPU required in worker)
+        "gpu-inpainting": {"exchange": "gpu-inpainting", "routing_key": "gpu-inpainting"},
+        # Transformer mode: Flux 2 via ComfyUI (worker has no GPU; ComfyUI container does)
+        "gpu-transformer": {"exchange": "gpu-transformer", "routing_key": "gpu-transformer"},
         "cpu-worker": {"exchange": "cpu-worker", "routing_key": "cpu-worker"},
     },
     # Config for Long-Running Tasks (VTON ~15 mins)

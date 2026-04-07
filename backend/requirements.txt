@@ -30,4 +30,8 @@ onnxruntime-gpu
 # git+https://github.com/facebookresearch/detectron2.git <- Installed manually in Dockerfile
 av>=8.0.3
 scipy>=1.5.4
-
+# Transformer mode (Flux 2 / ComfyUI weight management)
+huggingface_hub
+gguf>=0.10.0
+peft
+bitsandbytes>=0.43.0
