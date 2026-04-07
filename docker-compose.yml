@@ -22,7 +22,10 @@ services:
   # Requires a GPU. Consumes the 'gpu-inpainting' queue.
   # -----------------------------------------------------------------------
   worker-inpainting:
-    build: ./backend
+    profiles: [inpainting]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.inpainting
     command: celery -A app.core.celery_app worker --loglevel=info -P solo -Q gpu-inpainting,cpu-worker
     volumes:
       - ./backend:/app
@@ -47,6 +50,7 @@ services:
   # Consumes the 'gpu-transformer' queue and dispatches jobs over HTTP.
   # -----------------------------------------------------------------------
   worker-transformer:
+    profiles: [transformer]
     build: ./backend
     command: celery -A app.core.celery_app worker --loglevel=info -P solo -Q gpu-transformer
     volumes:
@@ -66,6 +70,7 @@ services:
   # GPU assigned here. Exposes port 8188 on the internal network.
   # -----------------------------------------------------------------------
   comfyui:
+    profiles: [transformer]
     image: yanwk/comfyui-boot:cu128-slim
     ports:
       - "8188:8188"
@@ -96,19 +101,18 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=vton
-    ports:
-      - "5432:5432"
+    # No host port needed — only accessed internally via service name 'db'
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    # No host port needed — only accessed internally via service name 'redis'
 
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      # 5672 (AMQP) not exposed — blocked by Windows Hyper-V port reservation
+      # Containers connect via internal Docker network
+      - "15672:15672"  # Management UI only
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest

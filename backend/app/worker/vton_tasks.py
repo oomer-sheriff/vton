@@ -1,5 +1,4 @@
 from celery import shared_task
-from app.core.vton_pipeline import vton_pipeline
 from app.db.session import SessionLocal
 from app.models.garment import Garment
 from uuid import UUID
@@ -23,7 +22,11 @@ def virtual_tryon_task(person_image_path: str, garment_id: str, output_path: str
             return {"status": "failed", "error": "Garment not found or not processed"}
 
         garment_path = garment.processed_image_path.replace("\\", "/")
-        
+
+        # Lazy import — only loads torch/diffusers/DensePose when task actually runs
+        # (prevents ImportError in worker-transformer which has no torch installed)
+        from app.core.vton_pipeline import vton_pipeline
+
         # Run Pipeline
         # In a real scenario, this returns a PIL Image or saves to path.
         # Our current skeleton returns the path it saved to.

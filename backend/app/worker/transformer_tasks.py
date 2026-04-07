@@ -1,5 +1,4 @@
 from celery import shared_task
-from app.core.comfyui_pipeline import comfyui_pipeline
 from app.db.session import SessionLocal
 from app.models.garment import Garment
 from uuid import UUID
@@ -24,6 +23,10 @@ def transformer_tryon_task(person_image_path: str, garment_id: str, output_path:
             return {"status": "failed", "error": "Garment not found or not processed"}
 
         garment_path = garment.processed_image_path.replace("\\", "/")
+
+        # Lazy import — only loads ComfyUI client + opens workflow_api.json when task runs
+        # (prevents issues in worker-inpainting which has no gguf/peft installed)
+        from app.core.comfyui_pipeline import comfyui_pipeline
 
         result_path = comfyui_pipeline.run(person_image_path, garment_path)
 

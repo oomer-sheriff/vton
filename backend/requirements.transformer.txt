@@ -1,0 +1,8 @@
+-r requirements.base.txt
+
+# Transformer mode — ComfyUI HTTP client + Flux 2 weight management
+# (No torch/CUDA needed here — inference runs in the comfyui container)
+huggingface_hub
+gguf>=0.10.0
+peft
+bitsandbytes>=0.43.0
