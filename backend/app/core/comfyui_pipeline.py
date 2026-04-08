@@ -33,17 +33,21 @@ class ComfyUIClient:
         """
         print("Sending VTON request to ComfyUI (transformer mode)...")
 
-        person_filename = os.path.basename(person_image_path)
-        garment_filename = os.path.basename(garment_image_path)
+        # ComfyUI's input directory is mapped to `backend/media`.
+        # person_image_path is usually `media/raw/file.ext`
+        # We need to strip the leading `media/` so ComfyUI sees `raw/file.ext`
+        person_rel_path = person_image_path.split("media/", 1)[-1]
+        garment_rel_path = garment_image_path.split("media/", 1)[-1]
 
         # Inject image filenames into the workflow graph
-        self.workflow["114"]["inputs"]["image"] = person_filename
-        self.workflow["115"]["inputs"]["image"] = garment_filename
+        self.workflow["114"]["inputs"]["image"] = person_rel_path
+        self.workflow["115"]["inputs"]["image"] = garment_rel_path
 
         # Model overrides — use the GGUF loader for quantized Flux 2
         self.workflow["92:70"]["inputs"]["unet_name"] = "flux-2-klein-4b-Q2_K.gguf"
         self.workflow["92:70"]["class_type"] = "UnetLoaderGGUF"
         self.workflow["92:71"]["inputs"]["clip_name"] = "Qwen3-4B-Q2_K.gguf"
+        self.workflow["92:71"]["class_type"] = "CLIPLoaderGGUF"  # Required for GGUF loading
         self.workflow["92:72"]["inputs"]["vae_name"] = "taef1.safetensors"
 
         try:

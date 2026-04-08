@@ -77,14 +77,14 @@ services:
     environment:
       - CLI_ARGS=--listen 0.0.0.0 --port 8188
     volumes:
-      - ./backend/custom_nodes:/workspace/ComfyUI/custom_nodes
-      - ./backend/app/core/weights:/workspace/ComfyUI/models/unet
-      - ./backend/app/core/weights:/workspace/ComfyUI/models/clip
-      - ./backend/app/core/weights:/workspace/ComfyUI/models/vae
-      - ./backend/app/core/weights:/workspace/ComfyUI/models/loras
+      - ./backend/custom_nodes:/root/ComfyUI/custom_nodes
+      - ./backend/app/core/weights:/root/ComfyUI/models/unet
+      - ./backend/app/core/weights:/root/ComfyUI/models/clip
+      - ./backend/app/core/weights:/root/ComfyUI/models/vae
+      - ./backend/app/core/weights:/root/ComfyUI/models/loras
       # Shared media volume: FastAPI writes person images here; ComfyUI reads from input/
-      - ./backend/media:/workspace/ComfyUI/input
-      - ./backend/media/results:/workspace/ComfyUI/output
+      - ./backend/media:/root/ComfyUI/input
+      - ./backend/media/results:/root/ComfyUI/output
     deploy:
       resources:
         reservations:

@@ -51,6 +51,9 @@ pnpm-debug.log*
 .next/
 out/
 model_final_162be9.pkl
+backend/app/core/weights/
+backend/custom_nodes/
+comfyui_logs.txt
 # IDEs
 .vscode/
 .idea/

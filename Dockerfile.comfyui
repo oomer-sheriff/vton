@@ -1,5 +1,0 @@
-FROM yanwk/comfyui-boot:cu128-slim
-
-# Install ComfyUI-GGUF Python dependency into ComfyUI's venv
-# so the UnetLoaderGGUF / CLIPLoaderGGUF node types are registered at startup.
-RUN /workspace/venv/bin/pip install --no-cache-dir gguf>=0.10.0
