@@ -40,15 +40,8 @@ class ComfyUIClient:
         garment_rel_path = garment_image_path.split("media/", 1)[-1]
 
         # Inject image filenames into the workflow graph
-        self.workflow["114"]["inputs"]["image"] = person_rel_path
-        self.workflow["115"]["inputs"]["image"] = garment_rel_path
-
-        # Model overrides — use the GGUF loader for quantized Flux 2
-        self.workflow["92:70"]["inputs"]["unet_name"] = "flux-2-klein-4b-Q2_K.gguf"
-        self.workflow["92:70"]["class_type"] = "UnetLoaderGGUF"
-        self.workflow["92:71"]["inputs"]["clip_name"] = "Qwen3-4B-Q2_K.gguf"
-        self.workflow["92:71"]["class_type"] = "CLIPLoaderGGUF"  # Required for GGUF loading
-        self.workflow["92:72"]["inputs"]["vae_name"] = "taef1.safetensors"
+        self.workflow["76"]["inputs"]["image"] = person_rel_path
+        self.workflow["81"]["inputs"]["image"] = garment_rel_path
 
         try:
             queue_response = self.queue_prompt(self.workflow)
@@ -67,8 +60,10 @@ class ComfyUIClient:
                         print(f"Output image: {final_filename}")
 
                         # The result lives in the shared media/results volume
+                        base_media_dir = os.path.dirname(os.path.dirname(person_image_path))
                         result_path = os.path.join(
-                            os.path.dirname(person_image_path),
+                            base_media_dir,
+                            "results",
                             final_filename,
                         )
                         return result_path

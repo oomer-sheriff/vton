@@ -1,9 +1,27 @@
 {
+  "76": {
+    "inputs": {
+      "image": "human.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "81": {
+    "inputs": {
+      "image": "t-shirt.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
   "94": {
     "inputs": {
-      "filename_prefix": "target_image",
+      "filename_prefix": "Flux2-Klein-4b-base",
       "images": [
-        "92:65",
+        "92:104",
         0
       ]
     },
@@ -12,86 +30,14 @@
       "title": "Save Image"
     }
   },
-  "107": {
-    "inputs": {
-      "filename_prefix": "clothing_control",
-      "images": [
-        "115",
-        0
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "108": {
-    "inputs": {
-      "filename_prefix": "human_control",
-      "images": [
-        "114",
-        0
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "114": {
-    "inputs": {
-      "image": "human_control_00014_.png"
-    },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "Load Image"
-    }
-  },
-  "115": {
-    "inputs": {
-      "image": "clothing_control_00023_.png"
-    },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "Load Image"
-    }
-  },
-  "92:64": {
-    "inputs": {
-      "noise": [
-        "92:73",
-        0
-      ],
-      "guider": [
-        "92:63",
-        0
-      ],
-      "sampler": [
-        "92:61",
-        0
-      ],
-      "sigmas": [
-        "92:62",
-        0
-      ],
-      "latent_image": [
-        "92:66",
-        0
-      ]
-    },
-    "class_type": "SamplerCustomAdvanced",
-    "_meta": {
-      "title": "SamplerCustomAdvanced"
-    }
-  },
-  "92:65": {
+  "92:104": {
     "inputs": {
       "samples": [
-        "92:64",
+        "92:103",
         0
       ],
       "vae": [
-        "92:72",
+        "92:107",
         0
       ]
     },
@@ -100,19 +46,76 @@
       "title": "VAE Decode"
     }
   },
-  "92:73": {
+  "92:115": {
     "inputs": {
-      "noise_seed": 205060522736894
+      "steps": 4,
+      "width": [
+        "92:108",
+        0
+      ],
+      "height": [
+        "92:108",
+        1
+      ]
     },
-    "class_type": "RandomNoise",
+    "class_type": "Flux2Scheduler",
     "_meta": {
-      "title": "RandomNoise"
+      "title": "Flux2Scheduler"
     }
   },
-  "92:81": {
+  "92:125": {
+    "inputs": {
+      "clip_name": "Qwen3-4B-Q2_K.gguf",
+      "type": "flux2"
+    },
+    "class_type": "CLIPLoaderGGUF",
+    "_meta": {
+      "title": "CLIPLoader (GGUF)"
+    }
+  },
+  "92:114": {
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "92:124",
+        0
+      ],
+      "positive": [
+        "92:112:118",
+        0
+      ],
+      "negative": [
+        "92:112:116",
+        0
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFGGuider"
+    }
+  },
+  "92:102": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "92:124": {
+    "inputs": {
+      "unet_name": "flux-2-klein-4b-Q2_K.gguf"
+    },
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "Unet Loader (GGUF)"
+    }
+  },
+  "92:108": {
     "inputs": {
       "image": [
-        "92:80",
+        "92:110",
         0
       ]
     },
@@ -121,114 +124,14 @@
       "title": "Get Image Size"
     }
   },
-  "92:80": {
-    "inputs": {
-      "upscale_method": "nearest-exact",
-      "megapixels": 1,
-      "resolution_steps": 1,
-      "image": [
-        "114",
-        0
-      ]
-    },
-    "class_type": "ImageScaleToTotalPixels",
-    "_meta": {
-      "title": "ImageScaleToTotalPixels"
-    }
-  },
-  "92:71": {
-    "inputs": {
-      "clip_name": "qwen_3_4b.safetensors",
-      "type": "flux2",
-      "device": "default"
-    },
-    "class_type": "CLIPLoader",
-    "_meta": {
-      "title": "Load CLIP"
-    }
-  },
-  "92:79:76": {
-    "inputs": {
-      "conditioning": [
-        "92:87",
-        0
-      ],
-      "latent": [
-        "92:79:78",
-        0
-      ]
-    },
-    "class_type": "ReferenceLatent",
-    "_meta": {
-      "title": "ReferenceLatent"
-    }
-  },
-  "92:79:78": {
-    "inputs": {
-      "pixels": [
-        "92:80",
-        0
-      ],
-      "vae": [
-        "92:72",
-        0
-      ]
-    },
-    "class_type": "VAEEncode",
-    "_meta": {
-      "title": "VAE Encode"
-    }
-  },
-  "92:79:77": {
-    "inputs": {
-      "conditioning": [
-        "92:74",
-        0
-      ],
-      "latent": [
-        "92:79:78",
-        0
-      ]
-    },
-    "class_type": "ReferenceLatent",
-    "_meta": {
-      "title": "ReferenceLatent"
-    }
-  },
-  "92:74": {
-    "inputs": {
-      "text": "image1 is a picture of a human in a certain outfit. image2 is a picture of a certain wearable fashion product such as footwear or upper-wear or bottom-wear.Identify which type of wearable product is in image2 and add to the outfit of the person in image1. Be fully aware of the different layers of clothing pieces and dont mix half a piece of clothing with another. Be aware of the outfit the person is already wearing and either swap a whole piece of product or add the wearable product on the upper layer of their existing outfit or add the product in a lower layer of the existing outfit. ",
-      "clip": [
-        "92:71",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Positive Prompt)"
-    }
-  },
-  "92:87": {
-    "inputs": {
-      "text": "",
-      "clip": [
-        "92:71",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode ( Negative Prompt)"
-    }
-  },
-  "92:66": {
+  "92:109": {
     "inputs": {
       "width": [
-        "92:81",
+        "92:108",
         0
       ],
       "height": [
-        "92:81",
+        "92:108",
         1
       ],
       "batch_size": 1
@@ -238,61 +141,50 @@
       "title": "Empty Flux 2 Latent"
     }
   },
-  "92:84:123": {
+  "92:103": {
     "inputs": {
-      "conditioning": [
-        "92:79:76",
+      "noise": [
+        "92:105",
         0
       ],
-      "latent": [
-        "92:84:124",
+      "guider": [
+        "92:114",
+        0
+      ],
+      "sampler": [
+        "92:102",
+        0
+      ],
+      "sigmas": [
+        "92:115",
+        0
+      ],
+      "latent_image": [
+        "92:109",
         0
       ]
     },
-    "class_type": "ReferenceLatent",
+    "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "ReferenceLatent"
+      "title": "SamplerCustomAdvanced"
     }
   },
-  "92:84:124": {
+  "92:105": {
     "inputs": {
-      "pixels": [
-        "92:85",
-        0
-      ],
-      "vae": [
-        "92:72",
-        0
-      ]
+      "noise_seed": 131644345958998
     },
-    "class_type": "VAEEncode",
+    "class_type": "RandomNoise",
     "_meta": {
-      "title": "VAE Encode"
+      "title": "RandomNoise"
     }
   },
-  "92:84:125": {
-    "inputs": {
-      "conditioning": [
-        "92:79:77",
-        0
-      ],
-      "latent": [
-        "92:84:124",
-        0
-      ]
-    },
-    "class_type": "ReferenceLatent",
-    "_meta": {
-      "title": "ReferenceLatent"
-    }
-  },
-  "92:85": {
+  "92:110": {
     "inputs": {
       "upscale_method": "nearest-exact",
       "megapixels": 1,
       "resolution_steps": 1,
       "image": [
-        "115",
+        "76",
         0
       ]
     },
@@ -301,7 +193,70 @@
       "title": "ImageScaleToTotalPixels"
     }
   },
-  "92:72": {
+  "92:85": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "megapixels": 1,
+      "resolution_steps": 1,
+      "image": [
+        "81",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "ImageScaleToTotalPixels"
+    }
+  },
+  "92:84:119": {
+    "inputs": {
+      "conditioning": [
+        "92:87",
+        0
+      ],
+      "latent": [
+        "92:84:120",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "92:84:120": {
+    "inputs": {
+      "pixels": [
+        "92:85",
+        0
+      ],
+      "vae": [
+        "92:107",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "92:84:121": {
+    "inputs": {
+      "conditioning": [
+        "92:113",
+        0
+      ],
+      "latent": [
+        "92:84:120",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "92:107": {
     "inputs": {
       "vae_name": "flux2-vae.safetensors"
     },
@@ -310,61 +265,78 @@
       "title": "Load VAE"
     }
   },
-  "92:61": {
+  "92:113": {
     "inputs": {
-      "sampler_name": "res_multistep"
-    },
-    "class_type": "KSamplerSelect",
-    "_meta": {
-      "title": "KSamplerSelect"
-    }
-  },
-  "92:63": {
-    "inputs": {
-      "cfg": 3,
-      "model": [
-        "92:70",
-        0
-      ],
-      "positive": [
-        "92:84:125",
-        0
-      ],
-      "negative": [
-        "92:84:123",
+      "text": "person in image1 wearing the clothing in image2 for virtual try-on",
+      "clip": [
+        "92:125",
         0
       ]
     },
-    "class_type": "CFGGuider",
+    "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CFGGuider"
+      "title": "CLIP Text Encode (Positive Prompt)"
     }
   },
-  "92:62": {
+  "92:112:116": {
     "inputs": {
-      "steps": 50,
-      "width": [
-        "92:81",
+      "conditioning": [
+        "92:84:119",
         0
       ],
-      "height": [
-        "92:81",
-        1
+      "latent": [
+        "92:112:117",
+        0
       ]
     },
-    "class_type": "Flux2Scheduler",
+    "class_type": "ReferenceLatent",
     "_meta": {
-      "title": "Flux2Scheduler"
+      "title": "ReferenceLatent"
     }
   },
-  "92:70": {
+  "92:112:117": {
     "inputs": {
-      "unet_name": "flux-2-klein-base-4b.safetensors",
-      "weight_dtype": "default"
+      "pixels": [
+        "92:110",
+        0
+      ],
+      "vae": [
+        "92:107",
+        0
+      ]
     },
-    "class_type": "UNETLoader",
+    "class_type": "VAEEncode",
     "_meta": {
-      "title": "Load Diffusion Model"
+      "title": "VAE Encode"
+    }
+  },
+  "92:112:118": {
+    "inputs": {
+      "conditioning": [
+        "92:84:121",
+        0
+      ],
+      "latent": [
+        "92:112:117",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent"
+    }
+  },
+  "92:87": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "92:125",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode ( Negative Prompt)"
     }
   }
 }
