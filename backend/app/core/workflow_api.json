@@ -77,7 +77,7 @@
     "inputs": {
       "cfg": 1,
       "model": [
-        "92:124",
+        "92:126",
         0
       ],
       "positive": [
@@ -115,7 +115,7 @@
   "92:108": {
     "inputs": {
       "image": [
-        "92:110",
+        "76",
         0
       ]
     },
@@ -178,34 +178,18 @@
       "title": "RandomNoise"
     }
   },
-  "92:110": {
+  "92:126": {
     "inputs": {
-      "upscale_method": "nearest-exact",
-      "megapixels": 1,
-      "resolution_steps": 1,
-      "image": [
-        "76",
+      "lora_name": "my_cloth_swap_lora.safetensors",
+      "strength_model": 1,
+      "model": [
+        "92:124",
         0
       ]
     },
-    "class_type": "ImageScaleToTotalPixels",
+    "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "ImageScaleToTotalPixels"
-    }
-  },
-  "92:85": {
-    "inputs": {
-      "upscale_method": "nearest-exact",
-      "megapixels": 1,
-      "resolution_steps": 1,
-      "image": [
-        "81",
-        0
-      ]
-    },
-    "class_type": "ImageScaleToTotalPixels",
-    "_meta": {
-      "title": "ImageScaleToTotalPixels"
+      "title": "Load LoRA"
     }
   },
   "92:84:119": {
@@ -227,7 +211,7 @@
   "92:84:120": {
     "inputs": {
       "pixels": [
-        "92:85",
+        "81",
         0
       ],
       "vae": [
@@ -297,7 +281,7 @@
   "92:112:117": {
     "inputs": {
       "pixels": [
-        "92:110",
+        "76",
         0
       ],
       "vae": [
